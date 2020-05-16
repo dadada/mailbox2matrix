@@ -1,2 +1,2 @@
 matrix-nio
-inotify
+inotify-simple
