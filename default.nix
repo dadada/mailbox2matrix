@@ -1,11 +1,12 @@
 with import <nixpkgs> {};
 let
-  pythonEnv = python37.withPackages(ps: [
-    ps.matrix-nio
-    ps.inotify-simple
+  pythonEnv = python3.withPackages(ps: with ps; [
+    inotify-simple
+    matrix-nio
   ]);
 in mkShell {
-  builtInputs = [
+  name = "mailbox2matrix-env";
+  buildInputs = [
     pythonEnv
   ];
 }
