@@ -1,0 +1,95 @@
+#!/usr/bin/env python
+
+import asyncio
+import email
+import pathlib
+import os
+import sys
+from nio import (AsyncClient, Api, ClientConfig)
+from inotify_simple import INotify, flags
+
+
+class Client(AsyncClient):
+
+    def send_message(self, From, Subject):
+        return self.room_send(
+            room_id=self.room,
+            message_type="m.room.message",
+            content={
+                "msgtype": "m.text",
+                "body": "From:\t%s\nSubject:\t%s" % (From, Subject)
+                }
+            )
+
+    async def process_message(self, name):
+        # delete message
+        path = pathlib.Path(os.path.join(self.maildir, name))
+        message = email.message_from_file(open(path, 'r'))
+        # send message
+        response = await self.send_message(message['from'], message['subject'])
+        path.unlink()
+
+    # TODO implement retry for old mails
+    async def process_queued(self):
+        for name in os.listdir(self.maildir):
+            await self.process_message(name)
+
+    async def run(self, password=None, token=None):
+        if token is None:
+            response = await self.login(password, device_name = self.device)
+            print("Access Token is", response.access_token)
+        else:
+            self.access_token = token
+
+        await self.process_queued()
+
+        while True:
+            for event in self.notify.read():
+                (_, _, _, name) = event
+                if flags.CREATE in flags.from_mask(event.mask):
+                    await self.process_message(name)
+
+    async def shutdown(sig, loop):
+        print('Shutting down')
+        await self.close()
+
+    def __init__(self, homeserver, user, device, room, maildir):
+        super().__init__(homeserver, user)
+        self.device = device
+        self.room = room
+        self.notify = INotify()
+        self.maildir = maildir
+        watch_flags = flags.CREATE
+        wd = self.notify.add_watch(maildir, watch_flags)
+
+
+def main():
+    homeserver = sys.argv[1]
+    username = sys.argv[2]
+    device = sys.argv[3]
+    room = sys.argv[4]
+    maildir = sys.argv[5]
+    if len(sys.argv) > 5:
+        tokenfile = sys.argv[6]
+
+    client = Client(homeserver, username, device, room, maildir)
+
+    loop = asyncio.get_event_loop()
+
+    try:
+        password = None
+        token = None
+        if os.path.isfile(tokenfile):
+            with open(tokenfile) as f:
+                token = f.readlines()[0].strip('\n')
+        else:
+            password = input('Could not find file for API-token. Please specify password.\nPassword: ')
+        loop.run_until_complete(client.run(password = password, token = token))
+    except KeyboardInterrupt:
+        client.shutdown()
+    finally:
+        loop.close()
+
+
+if __name__ == "__main__":
+    main()
