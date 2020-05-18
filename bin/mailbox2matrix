@@ -69,8 +69,10 @@ def main():
     device = sys.argv[3]
     room = sys.argv[4]
     maildir = sys.argv[5]
-    if len(sys.argv) > 5:
+    if len(sys.argv) > 6:
         tokenfile = sys.argv[6]
+    else:
+        tokenfile = "apitoken.txt"
 
     client = Client(homeserver, username, device, room, maildir)
 
