@@ -3,9 +3,10 @@
 import asyncio
 import email
 import pathlib
-import os
+from os import path, listdir
 import sys
-from nio import (AsyncClient, Api, ClientConfig)
+import logging
+from nio import (AsyncClient, Api, ClientConfig, RoomSendError)
 from inotify_simple import INotify, flags
 
 
@@ -22,16 +23,21 @@ class Client(AsyncClient):
             )
 
     async def process_message(self, name):
-        # delete message
-        path = pathlib.Path(os.path.join(self.maildir, name))
-        message = email.message_from_file(open(path, 'r'))
+        message_path = pathlib.Path(path.abspath(path.join(self.maildir, name)))
+        message = email.message_from_file(open(message_path, 'r'))
         # send message
+        logging.info('Sending %s', message_path)
         response = await self.send_message(message['from'], message['subject'])
-        path.unlink()
+        if response is not RoomSendError:
+            # delete message
+            logging.info('Removing message at: %s', message_path)
+            message_path.unlink()
+        else:
+            logging.error('Failed to send a message: %s', message_path)
 
     # TODO implement retry for old mails
     async def process_queued(self):
-        for name in os.listdir(self.maildir):
+        for name in listdir(self.maildir):
             await self.process_message(name)
 
     async def run(self, password=None, token=None):
@@ -81,7 +87,7 @@ def main():
     try:
         password = None
         token = None
-        if os.path.isfile(tokenfile):
+        if path.isfile(tokenfile):
             with open(tokenfile) as f:
                 token = f.readlines()[0].strip('\n')
         else:
@@ -94,4 +100,5 @@ def main():
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
     main()
