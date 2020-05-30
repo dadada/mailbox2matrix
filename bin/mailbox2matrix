@@ -3,12 +3,17 @@
 import asyncio
 import email
 import pathlib
-from os import path, listdir
 import sys
 import logging
+
+from os import path, listdir
+from email.header import decode_header, make_header
 from nio import (AsyncClient, Api, ClientConfig, RoomSendError)
 from inotify_simple import INotify, flags
 
+
+def decode(header):
+    return make_hader(decode_header(header))
 
 class Client(AsyncClient):
 
@@ -18,7 +23,7 @@ class Client(AsyncClient):
             message_type="m.room.message",
             content={
                 "msgtype": "m.text",
-                "body": "From:\t%s\nSubject:\t%s" % (From, Subject)
+                "body": "From:\t%s\nSubject:\t%s" % (decode(From), decode(Subject))
                 }
             )
 
