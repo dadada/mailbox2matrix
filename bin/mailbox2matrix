@@ -13,7 +13,7 @@ from inotify_simple import INotify, flags
 
 
 def decode(header):
-    return make_hader(decode_header(header))
+    return make_header(decode_header(header))
 
 class Client(AsyncClient):
 
