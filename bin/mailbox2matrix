@@ -18,12 +18,16 @@ def decode(header):
 class Client(AsyncClient):
 
     def send_message(self, From, Subject):
+        if From is not None:
+            From = decode(From)
+        if From is not None:
+            Subject = decode(Subject)
         return self.room_send(
             room_id=self.room,
             message_type="m.room.message",
             content={
                 "msgtype": "m.text",
-                "body": "From:\t%s\nSubject:\t%s" % (decode(From), decode(Subject))
+                "body": "From:\t%s\nSubject:\t%s" % (From, Subject)
                 }
             )
 
